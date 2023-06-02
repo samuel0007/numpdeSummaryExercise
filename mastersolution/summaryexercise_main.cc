@@ -50,6 +50,8 @@
 
 /// @brief Volumetric averaging for translating cell centered values to
 ///     vertex values.
+/// point_data = \sum_K |K| u_K / \sum_K |K|
+/// sum over neighbour K's
 /// @tparam T 
 /// @param mesh_p 
 /// @param cell_data 
