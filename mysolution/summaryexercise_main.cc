@@ -300,7 +300,7 @@ void projection_step(
 
    lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
 
-   // TODO 3.7 Assemble LHS of the pressure equation. LHS = -1/tau * A
+   // TODO 3.7 Assemble LHS of the pressure equation. LHS = -A
    // lf::uscalfe::ReactionDiffusionElementMatrixProvider laplacian_provider;
    // lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplacian_provider, A);
 
@@ -328,16 +328,19 @@ void projection_step(
    Eigen::SparseMatrix A_crs = A.makeSparse();
    Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
    solver.compute(A_crs);
-   Eigen::VectorXd pressure = solver.solve(phi);
+   // TODO 3.9: Solve the LSE with the given solver.
+   Eigen::VectorXd pressure = ;
    auto pressure_vertex_p = std::make_shared<lf::mesh::utils::CodimMeshDataSet<double>>(mesh_p, 2);
 
+   // TODO 3.10: Transfer EigenVector data to the pressure CodimMeshDataSet datastructure.
    for(const lf::mesh::Entity *vertex: mesh_p->Entities(2)) {
        const int global_idx = dofh.GlobalDofIndices(*vertex)[0];
-       (*pressure_vertex_p)(*vertex) = pressure[global_idx];
+       (*pressure_vertex_p)(*vertex) = ;
    }
 
    // 4. Compute gradient of pressure, evolve using explicit Euler
-   lf::fe::MeshFunctionGradFE pressure_gradient(fe_space, pressure);
+   // TODO 3.11: Find the gradient of the pressure. Hint: look at the documentaiton of MeshFunctionGradFE.
+   lf::fe::MeshFunctionGradFE pressure_gradient(...);
    for(const lf::mesh::Entity *cell: mesh_p->Entities(0)) {
        (*uv_cell_p)(*cell) -= tau * pressure_gradient(*cell, cell_center)[0];
    }

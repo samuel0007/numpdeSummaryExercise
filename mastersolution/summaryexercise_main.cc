@@ -281,7 +281,7 @@ void projection_step(
 
     cell_to_vertex(mesh_p, div_cell_p, div_vertex_p);
 
-    // 2. Solve diffusion on the mesh: laplacian(p) / tau = div(u) 
+    // 2. Solve diffusion on the mesh: laplacian(p) * tau = div(u)
     // 2.1 Assemble laplacian problem
 
     // TODO 3.6: Transfer data from the CodimMeshDataSet to an Eigenvector to later solve LSE.
@@ -294,9 +294,9 @@ void projection_step(
 
     lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
 
-    // TODO 3.7 Assemble LHS of the pressure equation. LHS = -1/tau * A
+    // TODO 3.7 Assemble LHS of the pressure equation. LHS = -A
     lf::uscalfe::ReactionDiffusionElementMatrixProvider laplacian_provider(
-        fe_space, lf::mesh::utils::MeshFunctionConstant(-1./tau), lf::mesh::utils::MeshFunctionConstant(0.0));
+        fe_space, lf::mesh::utils::MeshFunctionConstant(-1.), lf::mesh::utils::MeshFunctionConstant(0.0));
     lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplacian_provider, A);
 
     // TODO 3.8 Impose dirichlet boundary conditions
@@ -315,7 +315,7 @@ void projection_step(
     }
 
     // TODO: 3.8.2 Use FixFlaggedSolutionComponents to impose dirichlet boundary conditions on the
-    //      system -1/tau*A = phi
+    //      system -A = phi
     lf::assemble::FixFlaggedSolutionComponents<double>(
         [&](int gdof_idx) {
             return pressure_bdc[gdof_idx];
