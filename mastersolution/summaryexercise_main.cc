@@ -48,8 +48,9 @@
 //#define BOTTOM_WALL 0.1
 
 
+// TODO 2: Complete this function.
 /// @brief Volumetric averaging for translating cell centered values to
-///     vertex values.
+///     vertex values. 
 /// @tparam T 
 /// @param mesh_p 
 /// @param cell_data 
@@ -67,7 +68,7 @@ void cell_to_vertex(
         const double area = lf::geometry::Volume(*geo_ptr);
         const T local_data = (*cell_data)(*entity);
         for (const lf::mesh::Entity *vertex : entity->SubEntities(2)) {
-            
+            // FILL ME !
             (*point_data)(*vertex) += local_data*area;
             point_mass(*vertex) += area;
         }
@@ -78,6 +79,16 @@ void cell_to_vertex(
     }
 };
 
+// TODO 4: Complete the advection step.
+
+/// @brief 
+/// @param mesh_p 
+/// @param uv_cell_p 
+/// @param uv_vertex_p 
+/// @param normals_cell_p 
+/// @param neighbour_cells_p 
+/// @param tau 
+/// @param vtk_writer 
 void advection_step(
         std::shared_ptr<lf::mesh::Mesh> mesh_p,
         std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<Eigen::Vector2d>> uv_cell_p,
@@ -202,8 +213,8 @@ void advection_step(
 
 };
 
-/// @brief TODO 2: Complete this function. Once completed, you can output the result
-///         and output it in paraview
+/// @brief TODO 3: Complete this function. Once completed, you can output the result
+///         and output it in paraview.
 /// @param mesh_p 
 /// @param uv_cell_p 
 /// @param uv_vertex_p 
@@ -223,19 +234,24 @@ void projection_step(
         double tau,
         std::shared_ptr<lf::io::VtkWriter> vtk_writer,
         int step) {
-
+    
+    // TODO 3.1: Get the dofhandler from the the fe_space
     const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
+    // TODO 3.2: Get the number of degrees of freedom = number of vertices
     const lf::base::size_type N_dofs(dofh.NumDofs());
+
     const Eigen::Vector2d cell_center{1/3., 1/3.};
 
-    // 1. Get divergence of uv on nodes
+    // 1. Get divergence of uv on cells using gauss theorem. Move the values to vertices using
+    //      volumetric averaging.
     auto div_cell_p = std::make_shared<lf::mesh::utils::CodimMeshDataSet<double>>(mesh_p, 0);
     auto div_vertex_p = std::make_shared<lf::mesh::utils::CodimMeshDataSet<double>>(mesh_p, 2);
 
-    // Compute divergence using gauss theorem and central flux on cells
+    // The flux through every boundary is computed using the numerical central flux. 
     for (const lf::mesh::Entity *cell : mesh_p->Entities(0)) {
         const lf::geometry::Geometry *geo_ptr = cell->Geometry();
-        const Eigen::MatrixXd corners = lf::geometry::Corners(*geo_ptr);
+        // const Eigen::MatrixXd corners = lf::geometry::Corners(*geo_ptr);
+        // TODO 3.3: Get area of the cell.
         const double area = lf::geometry::Volume(*geo_ptr);
         const Eigen::Vector2d cell_uv = (*uv_cell_p)(*cell);
         double div = 0.;
@@ -245,10 +261,14 @@ void projection_step(
             const Eigen::MatrixXd edge_corners = lf::geometry::Corners(*edge_geo_ptr);
             const double length = lf::geometry::Volume(*edge_geo_ptr);
             const Eigen::Vector2d n = (*normals_cell_p)(*cell).col(i);
-            const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
             if(n_cell != nullptr) {
-                div += 0.5 * length * n.dot((*uv_cell_p)(*n_cell) + cell_uv);
+                const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
+                const Eigen::Vector2d n_cell_uv = (*uv_cell_p)(*n_cell);
+
+                // TODO 3.4 Use the central flux to update the divergence.
+                div += 0.5 * length * n.dot(n_cell_uv + cell_uv);
             } else {
+                // TODO 3.5 At the boundary, we only take the flux on the cell to update the divergence.
                 div += length * n.dot(cell_uv);
             }
             ++i;
@@ -258,21 +278,26 @@ void projection_step(
 
     cell_to_vertex(mesh_p, div_cell_p, div_vertex_p);
 
-    // 2. Solve diffusion on the mesh: laplacian(p) = div(u) / tau
+    // 2. Solve diffusion on the mesh: laplacian(p) / tau = div(u) 
     // 2.1 Assemble laplacian problem
+
+    // TODO 3.6: Transfer data from the CodimMeshDataSet to an Eigenvector to later solve LSE.
     Eigen::VectorXd phi(N_dofs);
     for(const lf::mesh::Entity *vertex: mesh_p->Entities(2)) {
         const int global_idx = dofh.GlobalDofIndices(*vertex)[0];
+        // 3.6 FILL ME 
         phi[global_idx] = (*div_vertex_p)(*vertex);
     }
 
     lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
+
+    // TODO 3.7 Assemble LHS of the pressure equation. LHS = -1/tau * A
     lf::uscalfe::ReactionDiffusionElementMatrixProvider laplacian_provider(
         fe_space, lf::mesh::utils::MeshFunctionConstant(-1./tau), lf::mesh::utils::MeshFunctionConstant(0.0));
     lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplacian_provider, A);
 
-    // 3.2 Impose dirichlet boundary conditions
-    // Pressure is 0 at left and right boundary
+    // TODO 3.8 Impose dirichlet boundary conditions
+    // Pressure is 0 at left and right boundary.
     lf::mesh::utils::CodimMeshDataSet<bool> bd_flags{
         lf::mesh::utils::flagEntitiesOnBoundary(mesh_p, 2)};
     std::vector<std::pair<bool,double>> pressure_bdc(N_dofs, {false, 42});
@@ -281,6 +306,7 @@ void projection_step(
         const Eigen::Vector2d pos = lf::geometry::Corners(*geo_ptr).col(0);
         if(bd_flags(*vertex) && (pos[0] < INLET_X || pos[0] > OUTLET_X)) {
             const int global_idx = dofh.GlobalDofIndices(*vertex)[0];
+            // 3.8 FILL ME
             pressure_bdc[global_idx] = {true, 0};
         }
     }
