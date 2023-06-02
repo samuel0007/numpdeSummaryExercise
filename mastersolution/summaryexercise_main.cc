@@ -29,7 +29,7 @@
 
 
 #define Time 0.001
-#define timesteps 50
+#define timesteps 1000
 
 // #define Time 0.03
 // #define timesteps 1500
@@ -269,8 +269,8 @@ void projection_step(
             const Eigen::MatrixXd edge_corners = lf::geometry::Corners(*edge_geo_ptr);
             const double length = lf::geometry::Volume(*edge_geo_ptr);
             const Eigen::Vector2d n = (*normals_cell_p)(*cell).col(i);
+            const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
             if(n_cell != nullptr) {
-                const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
                 const Eigen::Vector2d n_cell_uv = (*uv_cell_p)(*n_cell);
 
                 // TODO 3.4 Use the central flux to update the divergence.

@@ -99,7 +99,7 @@ void advection_step(
    double tau,
    std::shared_ptr<lf::io::VtkWriter> vtk_writer) {
    // 1. Initialize dof handler (1 per cell)
-   // TODO 4.1 replace the numbers
+   // TODO 4.1 replace the negative numbers
    const static lf::assemble::UniformFEDofHandler dofh(
        mesh_p, {{lf::base::RefEl::kPoint(), -1},
                 {lf::base::RefEl::kSegment(), -1},
@@ -129,17 +129,17 @@ void advection_step(
 
            if((*neighbour_cells_p)(*cell)[i] != nullptr) {
                if (flux >= 0) {
-                   // TODO 4.2
+                   // TODO 4.2 We are the "upwind", add the entry
                    // B.coeffRef(row, row) -= ;
                } else {
                    const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
                    const int col = dofh.GlobalDofIndices(*n_cell)[0];
-                   // TODO 4.3
+                   // TODO 4.3 The other is the "upwind", att the entry
                    // B.coeffRef(row, col) -= ;
                }
            } else {
                // Boundary condition for flux: no flux out!
-               // TODO 4.4
+               // TODO 4.4 Neumann Boundary condition
                if (flux >= 0 && edge_corners.col(0)[0] > OUTLET_X) {
                    // B.coeffRef(row, row) -= ;
                }
@@ -204,7 +204,7 @@ void advection_step(
    }
 
    // Evolution
-   // TODO 4.8 write down the Butcher scheme
+   // TODO 4.optional write down the Butcher scheme
    Eigen::VectorXd k0_u = B * mu_u;
    Eigen::VectorXd k1_u = B * (mu_u + tau * k0_u);
    mu_u += tau * 0.5 * (k0_u + k1_u);
@@ -244,9 +244,9 @@ void projection_step(
    int step) {
 
    // TODO 3.1: Get the dofhandler from the the fe_space
-   const lf::assemble::DofHandler &dofh{fe_space->LocGlobMap()};
+   const lf::assemble::DofHandler &dofh{};
    // TODO 3.2: Get the number of degrees of freedom = number of vertices
-   const lf::base::size_type N_dofs(dofh.NumDofs());
+   const lf::base::size_type N_dofs = -1;
 
    const Eigen::Vector2d cell_center{1/3., 1/3.};
 
@@ -260,7 +260,7 @@ void projection_step(
        const lf::geometry::Geometry *geo_ptr = cell->Geometry();
        // const Eigen::MatrixXd corners = lf::geometry::Corners(*geo_ptr);
        // TODO 3.3: Get area of the cell.
-       const double area = lf::geometry::Volume(*geo_ptr);
+       const double area = -1;
        const Eigen::Vector2d cell_uv = (*uv_cell_p)(*cell);
        double div = 0.;
        int i = 0;
@@ -269,15 +269,15 @@ void projection_step(
            const Eigen::MatrixXd edge_corners = lf::geometry::Corners(*edge_geo_ptr);
            const double length = lf::geometry::Volume(*edge_geo_ptr);
            const Eigen::Vector2d n = (*normals_cell_p)(*cell).col(i);
+           const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
            if(n_cell != nullptr) {
-               const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
                const Eigen::Vector2d n_cell_uv = (*uv_cell_p)(*n_cell);
 
                // TODO 3.4 Use the central flux to update the divergence.
-               div += 0.5 * length * n.dot(n_cell_uv + cell_uv);
+               div += -1;
            } else {
                // TODO 3.5 At the boundary, we only take the flux on the cell to update the divergence.
-               div += length * n.dot(cell_uv);
+               div += -1;
            }
            ++i;
        }
@@ -294,15 +294,14 @@ void projection_step(
    for(const lf::mesh::Entity *vertex: mesh_p->Entities(2)) {
        const int global_idx = dofh.GlobalDofIndices(*vertex)[0];
        // 3.6 FILL ME
-       phi[global_idx] = (*div_vertex_p)(*vertex);
+       // phi[global_idx] = ;
    }
 
    lf::assemble::COOMatrix<double> A(N_dofs, N_dofs);
 
    // TODO 3.7 Assemble LHS of the pressure equation. LHS = -1/tau * A
-   lf::uscalfe::ReactionDiffusionElementMatrixProvider laplacian_provider(
-       fe_space, lf::mesh::utils::MeshFunctionConstant(-1./tau), lf::mesh::utils::MeshFunctionConstant(0.0));
-   lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplacian_provider, A);
+   // lf::uscalfe::ReactionDiffusionElementMatrixProvider laplacian_provider;
+   // lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplacian_provider, A);
 
    // TODO 3.8 Impose dirichlet boundary conditions
    // Pressure is 0 at left and right boundary.
@@ -315,7 +314,7 @@ void projection_step(
        if(bd_flags(*vertex) && (pos[0] < INLET_X || pos[0] > OUTLET_X)) {
            const int global_idx = dofh.GlobalDofIndices(*vertex)[0];
            // 3.8 FILL ME
-           pressure_bdc[global_idx] = {true, 0};
+           pressure_bdc[global_idx] = {-1, -1};
        }
    }
 
