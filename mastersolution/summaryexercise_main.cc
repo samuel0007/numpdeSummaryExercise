@@ -83,18 +83,18 @@ void cell_to_vertex(
 void advection_step(
         std::shared_ptr<lf::mesh::Mesh> mesh_p,
         std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<Eigen::Vector2d>> uv_cell_p,
-        std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<Eigen::Vector2d>> uv_vertex_p,
         std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<Eigen::Matrix<double, 2, 3>>> normals_cell_p,
         std::shared_ptr<lf::mesh::utils::CodimMeshDataSet<std::array<const lf::mesh::Entity*, 3>>> neighbour_cells_p,
         double tau,
         std::shared_ptr<lf::io::VtkWriter> vtk_writer) {
     // 1. Initialize dof handler (1 per cell)
-    const lf::assemble::UniformFEDofHandler dofh(
+    // TODO 4.1 fill the numbers
+    const static lf::assemble::UniformFEDofHandler dofh(
         mesh_p, {{lf::base::RefEl::kPoint(), 0},
                    {lf::base::RefEl::kSegment(), 0},
                    {lf::base::RefEl::kTria(), 1},
                    {lf::base::RefEl::kQuad(), 0}}); // triangle mesh, 1 dof per cell
-    const int N_dofs = dofh.NumDofs();
+    const static int N_dofs = dofh.NumDofs();
 
     // 2. Advect uv
     Eigen::SparseMatrix<double> B(N_dofs, N_dofs);
@@ -118,14 +118,17 @@ void advection_step(
 
             if((*neighbour_cells_p)(*cell)[i] != nullptr) {
                 if (flux >= 0) {
+                    // TODO 4.2
                     B.coeffRef(row, row) -= flux * length / area;
                 } else {
                     const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
                     const int col = dofh.GlobalDofIndices(*n_cell)[0];
+                    // TODO 4.3
                     B.coeffRef(row, col) -= flux * length / area;
                 }
             } else {
                 // Boundary condition for flux: no flux out!
+                // TODO 4.4
                 if (flux >= 0 && edge_corners.col(0)[0] > OUTLET_X) {
                     B.coeffRef(row, row) -= flux * length / area;
                 }
@@ -144,14 +147,13 @@ void advection_step(
 
     // Enforce dirichlet boundary condition
     // Flag Edges on the boundary
-    lf::mesh::utils::CodimMeshDataSet<bool> bd_blags{
+    lf::mesh::utils::CodimMeshDataSet<bool> bd_flags{
         lf::mesh::utils::flagEntitiesOnBoundary(mesh_p, 1)};
 
     // Iterate over all cells
     for (const lf::mesh::Entity *cell : mesh_p->Entities(0)) {
-        int counter = 0;
-        for (auto edge : cell->SubEntities(1)) {
-            if (bd_blags(*edge)) {
+        for (const auto *edge : cell->SubEntities(1)) {
+            if (bd_flags(*edge)) {
                 Eigen::Matrix<double, 2, 2> corner_edges =
                     lf::geometry::Corners(*edge->Geometry());
 
@@ -162,6 +164,7 @@ void advection_step(
                         mu_u[idx] = speed;
                         mu_v[idx] = 0.0;
                     } else {
+                        // TODO 4.optional play around with the value ?
                         mu_u[idx] = speed;
                         mu_v[idx] = 0.0;
                     }
@@ -170,24 +173,27 @@ void advection_step(
 //                    mu_u[idx] = 0.0;
 //                    mu_v[idx] = 0.0;
                 } else if (corner_edges.col(0)[1] < BOTTOM_WALL) { // Bottom Boundary
+                    // TODO 4.5
                     B.row(idx) *= 0;
                     mu_u[idx] = 0.0;
                     mu_v[idx] = 0.0;
                 } else if (corner_edges.col(0)[1] > TOP_WALL) { // Top Boundary
+                    // TODO 4.6
                     B.row(idx) *= 0;
                     mu_u[idx] = 0.0;
                     mu_v[idx] = 0.0;
                 } else { // Airfoil boundary
+                    // TODO 4.7
                     B.row(idx) *= 0;
                     mu_u[idx] = 0.0;
                     mu_v[idx] = 0.0;
                 }
             }
         }
-        counter++;
     }
 
     // Evolution
+    // TODO 4.8 write down the Butcher scheme
     Eigen::VectorXd k0_u = B * mu_u;
     Eigen::VectorXd k1_u = B * (mu_u + tau * k0_u);
     mu_u += tau * 0.5 * (k0_u + k1_u);
@@ -419,7 +425,7 @@ int main() {
         cell_to_vertex(mesh_p, uv_cell_p, uv_vertex_p);
 
         // TODO 4: Complete advection step
-        advection_step(mesh_p, uv_cell_p, uv_vertex_p, normals_cell_p, neighbour_cells_p, tau, vtk_writer);
+        advection_step(mesh_p, uv_cell_p, normals_cell_p, neighbour_cells_p, tau, vtk_writer);
 
         if(ts % interval  == 0) vtk_writer->WriteCellData("uv_cell_a" + std::to_string(ts), *uv_cell_p);
 
