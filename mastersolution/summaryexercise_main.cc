@@ -1,8 +1,8 @@
 /**
  * @file summaryexercise_main.cc
  * @brief NPDE homework SummaryExercise code
- * @author Oliver Rietmann, Erick Schulz
- * @date 01.01.2020
+ * @author Samuel Russo, Jonas Bachmman
+ * @date 02.06.2023
  * @copyright Developed at ETH Zurich
  */
 
@@ -314,11 +314,13 @@ void projection_step(
         const Eigen::Vector2d pos = lf::geometry::Corners(*geo_ptr).col(0);
         if(bd_flags(*vertex) && (pos[0] < INLET_X || pos[0] > OUTLET_X)) {
             const int global_idx = dofh.GlobalDofIndices(*vertex)[0];
-            // 3.8 FILL ME
+            // TODO: 3.8.1 FILL ME
             pressure_bdc[global_idx] = {true, 0};
         }
     }
 
+    // TODO: 3.8.2 Use FixFlaggedSolutionComponents to impose dirichlet boundary conditions on the
+    //      system -1/tau*A = phi
     lf::assemble::FixFlaggedSolutionComponents<double>(
         [&](int gdof_idx) {
             return pressure_bdc[gdof_idx];
@@ -328,15 +330,19 @@ void projection_step(
     Eigen::SparseMatrix A_crs = A.makeSparse();
     Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
     solver.compute(A_crs);
+    // TODO 3.9: Solve the LSE with the given solver.
     Eigen::VectorXd pressure = solver.solve(phi);
     auto pressure_vertex_p = std::make_shared<lf::mesh::utils::CodimMeshDataSet<double>>(mesh_p, 2);
 
+    // TODO 3.10: Transfer EigenVector data to the pressure CodimMeshDataSet datastructure.
     for(const lf::mesh::Entity *vertex: mesh_p->Entities(2)) {
         const int global_idx = dofh.GlobalDofIndices(*vertex)[0];
+        // FILL ME!
         (*pressure_vertex_p)(*vertex) = pressure[global_idx];
     }
 
     // 4. Compute gradient of pressure, evolve using explicit Euler
+    // TODO 3.11: Find the gradient of the pressure. Hint: look at the documentaiton of MeshFunctionGradFE.
     lf::fe::MeshFunctionGradFE pressure_gradient(fe_space, pressure);
     for(const lf::mesh::Entity *cell: mesh_p->Entities(0)) {
         (*uv_cell_p)(*cell) -= tau * pressure_gradient(*cell, cell_center)[0];
