@@ -29,7 +29,7 @@
 
 
 #define Time 0.001
-#define timesteps 1000
+#define timesteps 100
 
 // #define Time 0.03
 // #define timesteps 1500
@@ -130,7 +130,8 @@ void advection_step(
                     const lf::mesh::Entity *n_cell = (*neighbour_cells_p)(*cell)[i];
                     const int col = dofh.GlobalDofIndices(*n_cell)[0];
                     // TODO 4.3
-                    B.coeffRef(row, col) -= flux * length / area;
+                    double flux_n = (*uv_cell_p)(*(n_cell)).dot(n);
+                    B.coeffRef(row, col) -= flux_n * length / area;
                 }
             } else {
                 // Boundary condition for flux: no flux out!
