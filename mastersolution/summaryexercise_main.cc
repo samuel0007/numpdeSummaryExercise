@@ -33,19 +33,14 @@
 
 // #define Time 0.03
 // #define timesteps 1500
-
-//#define Time 0.01
-//#define timesteps 500
+// #define Time 0.01
+// #define timesteps 500
 #define interval 10
 #define speed 200
 #define INLET_X -2.4
 #define OUTLET_X 3.4
 #define TOP_WALL 0.9
 #define BOTTOM_WALL -0.9
-//#define INLET_X 0.1
-//#define OUTLET_X 0.9
-//#define TOP_WALL 0.9
-//#define BOTTOM_WALL 0.1
 
 
 // TODO 2: Complete this function.
