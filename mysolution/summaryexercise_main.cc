@@ -29,7 +29,8 @@
 
 
 #define Time 0.001
-#define timesteps 50
+// TODO change this
+#define timesteps 1
 
 // #define Time 0.03
 // #define timesteps 1500
